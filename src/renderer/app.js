@@ -220,6 +220,7 @@ function setupIPCListeners() {
       
       if (transfer.remotePath) {
         downloadStates.set(transfer.remotePath, 'complete');
+        setTimeout(() => downloadStates.delete(transfer.remotePath), 30000);
         renderSearchResults();
       }
       
@@ -335,6 +336,11 @@ function showView(viewName) {
     targetView.classList.add('active');
   }
   if (targetBtn) targetBtn.classList.add('active');
+  
+  if (window.artworkUtils) {
+    window.artworkUtils.cleanupStaleArtwork();
+  }
+  
   if (viewName === 'library') loadLibrary();
   else if (viewName === 'playlists') loadPlaylists();
   else if (viewName === 'settings') {
@@ -394,4 +400,10 @@ window.addEventListener('beforeunload', () => {
   window.api.removeAllListeners('soulseek-status');
   window.api.removeAllListeners('login-success');
   window.api.removeAllListeners('login-fail');
+  
+  if (window.artworkUtils) {
+    window.artworkUtils.clearArtworkCache();
+  }
+  downloadStates.clear();
+  activeDownloads.clear();
 });

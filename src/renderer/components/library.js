@@ -1,5 +1,7 @@
 let library = [];
 let libraryViewMode = 'grid';
+let libraryVirtualList = null;
+const VIRTUAL_THRESHOLD = 50;
 
 async function loadLibrary() {
   try {
@@ -37,30 +39,34 @@ function renderLibrary() {
 }
 
 function renderLibraryGrid(container) {
-  container.innerHTML = `
-    <div class="library-grid">
-      ${library.map((song, index) => renderLibraryGridItem(song, index)).join('')}
-    </div>
-  `;
+  if (libraryVirtualList) {
+    libraryVirtualList.destroy();
+    libraryVirtualList = null;
+  }
+  
+  container.innerHTML = '<div class="library-grid" id="libraryGridContainer"></div>';
+  const gridContainer = document.getElementById('libraryGridContainer');
+  
+  let html = '';
+  library.forEach((song, index) => {
+    html += renderLibraryGridItem(song, index);
+  });
+  gridContainer.innerHTML = html;
 }
 
 function renderLibraryGridItem(song, index) {
   const qualityClass = getQualityClass(song.quality || 'Unknown');
-  const hasArtwork = song.hasArtwork && song.artwork && song.artwork.data;
   let artworkSrc = '';
   
-  if (hasArtwork) {
-    const base64Data = typeof song.artwork.data === 'string' 
-      ? song.artwork.data 
-      : '';
-    artworkSrc = `data:${song.artwork.format};base64,${base64Data}`;
+  if (song.hasArtwork && song.artwork) {
+    artworkSrc = window.artworkUtils?.getThumbnailUrl(song) || '';
   }
 
   return `
     <div class="library-item" data-index="${index}">
-      <div class="library-item-art ${hasArtwork ? 'has-artwork' : ''}">
-        ${hasArtwork && artworkSrc
-          ? `<img src="${artworkSrc}" alt="Album Art">`
+      <div class="library-item-art ${artworkSrc ? 'has-artwork' : ''}">
+        ${artworkSrc
+          ? `<img src="${artworkSrc}" alt="Album Art" loading="lazy">`
           : `<div class="library-item-default-art">
               <svg viewBox="0 0 24 24" width="48" height="48">
                 <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.5"/>
@@ -95,8 +101,13 @@ function renderLibraryGridItem(song, index) {
 }
 
 function renderLibraryList(container) {
+  if (libraryVirtualList) {
+    libraryVirtualList.destroy();
+    libraryVirtualList = null;
+  }
+  
   container.innerHTML = `
-    <div class="library-list">
+    <div class="library-list" id="libraryListContainer">
       <div class="library-list-item library-list-header" style="background: var(--bg-tertiary); border: none;">
         <span class="library-list-number">#</span>
         <span class="library-list-title" style="color: var(--text-muted); font-weight: 500;">Title</span>
@@ -105,18 +116,42 @@ function renderLibraryList(container) {
         <span class="library-list-duration" style="color: var(--text-muted);">Duration</span>
         <span class="library-list-quality" style="color: var(--text-muted);">Quality</span>
       </div>
-      ${library.map((song, index) => renderLibraryListItem(song, index)).join('')}
+      <div id="libraryListItems"></div>
     </div>
   `;
+  
+  const listContainer = document.getElementById('libraryListItems');
+  
+  if (library.length > VIRTUAL_THRESHOLD) {
+    libraryVirtualList = new VirtualList(listContainer, {
+      itemHeight: 50,
+      bufferSize: 5,
+      useVirtual: true
+    });
+    
+    libraryVirtualList.renderItem = (song, index) => {
+      return renderLibraryListItem(song, index);
+    };
+    
+    libraryVirtualList.setItems(library.map((song, index) => ({ song, index })));
+  } else {
+    let html = '';
+    library.forEach((song, index) => {
+      html += renderLibraryListItem(song, index);
+    });
+    listContainer.innerHTML = html;
+  }
 }
 
-function renderLibraryListItem(song, index) {
+function renderLibraryListItem(item, index) {
+  const song = item.song || item;
+  const idx = item.index !== undefined ? item.index : index;
   const qualityClass = getQualityClass(song.quality || 'Unknown');
-  const isPlaying = currentTrack && currentTrack.filePath === song.filePath;
+  const isPlaying = window.currentTrack && window.currentTrack.filePath === song.filePath;
 
   return `
-    <div class="library-list-item ${isPlaying ? 'playing' : ''}" data-index="${index}">
-      <span class="library-list-number">${isPlaying ? '♪' : index + 1}</span>
+    <div class="library-list-item ${isPlaying ? 'playing' : ''}" data-index="${idx}">
+      <span class="library-list-number">${isPlaying ? '♪' : idx + 1}</span>
       <span class="library-list-title">${song.title || 'Unknown'}</span>
       <span class="library-list-artist">${song.artist || 'Unknown Artist'}</span>
       <span class="library-list-album">${song.album || '—'}</span>

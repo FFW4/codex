@@ -37,21 +37,18 @@ function renderPlaylists() {
 
 function renderPlaylistCard(playlist, index) {
   const songCount = playlist.songs ? playlist.songs.length : 0;
-  const hasArtwork = playlist.songs && playlist.songs.length > 0 && playlist.songs[0].artwork && playlist.songs[0].artwork.data;
+  const firstSong = playlist.songs && playlist.songs.length > 0 ? playlist.songs[0] : null;
   
   let artworkSrc = '';
-  if (hasArtwork) {
-    const base64Data = typeof playlist.songs[0].artwork.data === 'string' 
-      ? playlist.songs[0].artwork.data 
-      : '';
-    artworkSrc = `data:${playlist.songs[0].artwork.format};base64,${base64Data}`;
+  if (firstSong && firstSong.hasArtwork && firstSong.artwork) {
+    artworkSrc = window.artworkUtils?.getThumbnailUrl(firstSong) || '';
   }
   
   return `
     <div class="playlist-card" data-index="${index}">
-      <div class="playlist-card-art ${hasArtwork ? 'has-artwork' : ''}">
-        ${hasArtwork && artworkSrc
-          ? `<img src="${artworkSrc}" alt="Playlist Art">`
+      <div class="playlist-card-art ${artworkSrc ? 'has-artwork' : ''}">
+        ${artworkSrc
+          ? `<img src="${artworkSrc}" alt="Playlist Art" loading="lazy">`
           : `<div class="playlist-card-default-art">
               <svg viewBox="0 0 24 24" width="48" height="48">
                 <line x1="8" y1="6" x2="21" y2="6" stroke="currentColor" stroke-width="1.5" opacity="0.5"/>

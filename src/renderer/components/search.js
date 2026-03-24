@@ -2,16 +2,21 @@ let searchResults = [];
 let searchLoading = false;
 let renderTimeout = null;
 let selectedSongIndex = -1;
+const MAX_SEARCH_RESULTS = 200;
 
 function performSearch() {
   const query = document.getElementById('searchInput').value.trim();
   if (!query || searchLoading) return;
 
+  if (renderTimeout) {
+    clearTimeout(renderTimeout);
+    renderTimeout = null;
+  }
+
   searchLoading = true;
   searchResults = [];
   renderSearchLoading();
 
-  // Clear previous results immediately
   const container = document.getElementById('searchResults');
   container.innerHTML = '<div class="search-loading"><div class="spinner"></div><p style="color: var(--text-muted); font-size: 13px;">Searching...</p></div>';
 
@@ -22,8 +27,7 @@ function performSearch() {
       showNotification('Search failed: ' + response.error, 'error');
       renderSearchEmpty();
     } else if (response.results) {
-      // Add all results at once
-      searchResults = response.results;
+      searchResults = response.results.slice(0, MAX_SEARCH_RESULTS);
       console.log('Setting searchResults:', searchResults.length);
       renderSearchResults();
     }
@@ -35,9 +39,10 @@ function performSearch() {
   });
 }
 
-// Global function for IPC event listener
 window.onSearchResult = function(result) {
-  searchResults.push(result);
+  if (searchResults.length < MAX_SEARCH_RESULTS) {
+    searchResults.push(result);
+  }
   if (renderTimeout) clearTimeout(renderTimeout);
   renderTimeout = setTimeout(() => {
     renderSearchResults();
@@ -85,17 +90,16 @@ function renderSearchResults() {
     return;
   }
 
-  const displayLimit = 200;
-  const displayResults = searchResults.slice(0, displayLimit);
-
-  let html = `<p class="results-count">${searchResults.length} results${searchResults.length > displayLimit ? ` (showing ${displayLimit})` : ''}</p>`;
-  html += '<div class="search-results-grid">';
-  displayResults.forEach((result, index) => {
+  let html = `<p class="results-count">${searchResults.length} results</p>`;
+  html += '<div class="search-results-grid" id="searchResultsGrid">';
+  
+  searchResults.forEach((result, index) => {
     html += renderSearchResultItem(result, index);
   });
+  
   html += '</div>';
-
   container.innerHTML = html;
+  
   console.log('Rendered HTML, container children:', container.children.length);
 }
 

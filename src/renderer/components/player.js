@@ -188,20 +188,24 @@ function updateNowPlaying(trackInfo) {
   if (artistEl) {
     artistEl.textContent = trackInfo.artist || 'Unknown Artist';
   }
-  if (artEl && trackInfo.artwork && trackInfo.artwork.data) {
-    const base64Data = typeof trackInfo.artwork.data === 'string' 
-      ? trackInfo.artwork.data 
-      : trackInfo.artwork.data.toString('base64');
-    artEl.innerHTML = `<img src="data:${trackInfo.artwork.format};base64,${base64Data}" alt="Album Art">`;
-    artEl.classList.add('has-artwork');
-  } else if (artEl) {
-    artEl.innerHTML = `
-      <svg viewBox="0 0 24 24" width="24" height="24">
-        <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1"/>
-        <circle cx="12" cy="12" r="3" fill="currentColor"/>
-      </svg>
-    `;
-    artEl.classList.remove('has-artwork');
+  if (artEl) {
+    let artworkSrc = '';
+    if (trackInfo.artwork && trackInfo.hasArtwork !== false) {
+      artworkSrc = window.artworkUtils?.getFullArtworkUrl(trackInfo) || '';
+    }
+    
+    if (artworkSrc) {
+      artEl.innerHTML = `<img src="${artworkSrc}" alt="Album Art">`;
+      artEl.classList.add('has-artwork');
+    } else {
+      artEl.innerHTML = `
+        <svg viewBox="0 0 24 24" width="24" height="24">
+          <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1"/>
+          <circle cx="12" cy="12" r="3" fill="currentColor"/>
+        </svg>
+      `;
+      artEl.classList.remove('has-artwork');
+    }
   }
 
   document.title = `${trackInfo.title || 'CODEX'} - CODEX`;
