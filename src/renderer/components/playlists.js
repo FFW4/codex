@@ -1,9 +1,10 @@
 let playlists = [];
-let selectedPlaylist = null;
+let selectedPlaylistIndex = null;
 
 async function loadPlaylists() {
   try {
     playlists = await window.api.getPlaylists() || [];
+    selectedPlaylistIndex = null;
     renderPlaylists();
   } catch (error) {
     console.error('Failed to load playlists:', error);
@@ -81,6 +82,95 @@ function renderPlaylistCard(playlist, index) {
   `;
 }
 
+function renderPlaylistSongs(playlistIndex) {
+  const playlist = playlists[playlistIndex];
+  if (!playlist) return;
+  
+  selectedPlaylistIndex = playlistIndex;
+  const container = document.getElementById('playlistsContent');
+  
+  if (!playlist.songs || playlist.songs.length === 0) {
+    container.innerHTML = `
+      <div class="playlist-songs-header">
+        <button class="back-btn" id="backToPlaylists">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="15,18 9,12 15,6"/>
+          </svg>
+          Back
+        </button>
+        <h2 class="playlist-songs-title">${playlist.name}</h2>
+      </div>
+      <div class="empty-state">
+        <p class="empty-text">This playlist is empty. Add songs from the Library.</p>
+      </div>
+    `;
+    return;
+  }
+  
+  container.innerHTML = `
+    <div class="playlist-songs-header">
+      <button class="back-btn" id="backToPlaylists">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="15,18 9,12 15,6"/>
+        </svg>
+        Back
+      </button>
+      <h2 class="playlist-songs-title">${playlist.name}</h2>
+      <button class="play-all-btn" id="playPlaylistSongs">
+        <svg viewBox="0 0 24 24" width="16" height="16">
+          <polygon points="5,3 19,12 5,21" fill="currentColor"/>
+        </svg>
+        Play All
+      </button>
+    </div>
+    <div class="playlist-songs-list">
+      ${playlist.songs.map((song, index) => renderPlaylistSongItem(song, index)).join('')}
+    </div>
+  `;
+}
+
+function renderPlaylistSongItem(song, index) {
+  const qualityClass = getQualityClass(song.quality || 'Unknown');
+  const isPlaying = currentTrack && currentTrack.filePath === song.filePath;
+  
+  return `
+    <div class="playlist-song-item ${isPlaying ? 'playing' : ''}" data-index="${index}">
+      <span class="playlist-song-number">${isPlaying ? '♪' : index + 1}</span>
+      <span class="playlist-song-title">${song.title || 'Unknown'}</span>
+      <span class="playlist-song-artist">${song.artist || 'Unknown Artist'}</span>
+      <span class="playlist-song-quality">
+        <span class="result-quality ${qualityClass}">${song.quality || 'Unknown'}</span>
+      </span>
+      <button class="playlist-song-remove" data-remove="${index}" title="Remove from playlist">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+  `;
+}
+
+function playPlaylist(playlistIndex, startIndex = 0) {
+  const playlist = playlists[playlistIndex];
+  if (!playlist || !playlist.songs || playlist.songs.length === 0) return;
+  
+  currentPlaylist = 'playlist_' + playlistIndex;
+  window.playlist = [...playlist.songs];
+  playFromPlaylist(startIndex);
+}
+
+function removeSongFromPlaylist(playlistIndex, songIndex) {
+  const playlist = playlists[playlistIndex];
+  if (!playlist || !playlist.songs) return;
+  
+  playlist.songs.splice(songIndex, 1);
+  window.api.savePlaylist(playlist).then(() => {
+    renderPlaylistSongs(playlistIndex);
+    showNotification('Song removed from playlist', 'info');
+  });
+}
+
 function createPlaylist(name, songs = []) {
   const newPlaylist = {
     id: 'playlist_' + Date.now(),
@@ -103,42 +193,70 @@ function createPlaylist(name, songs = []) {
 function deletePlaylist(playlistId) {
   window.api.deletePlaylist(playlistId).then(() => {
     playlists = playlists.filter(p => p.id !== playlistId);
-    renderPlaylists();
+    if (selectedPlaylistIndex !== null) {
+      const deletedPlaylist = playlists[selectedPlaylistIndex];
+      if (!deletedPlaylist || deletedPlaylist.id !== playlistId) {
+        selectedPlaylistIndex = null;
+        renderPlaylists();
+      } else {
+        renderPlaylistSongs(selectedPlaylistIndex);
+      }
+    } else {
+      renderPlaylists();
+    }
     showNotification('Playlist deleted', 'info');
   });
 }
 
-function playPlaylist(index) {
-  const playlist = playlists[index];
-  if (!playlist || !playlist.songs || playlist.songs.length === 0) return;
-  
-  currentPlaylist = 'playlist_' + index;
-  currentPlaylistSongs = playlist.songs;
-  playFromPlaylist(0);
-}
-
 document.addEventListener('DOMContentLoaded', () => {
   const container = document.getElementById('playlistsContent');
-  if (container) {
-    container.addEventListener('click', (e) => {
-      const deleteBtn = e.target.closest('[data-delete]');
-      if (deleteBtn) {
-        e.stopPropagation();
-        deletePlaylist(deleteBtn.dataset.delete);
-        return;
-      }
-      
-      const card = e.target.closest('.playlist-card');
-      if (card) {
-        const index = parseInt(card.dataset.index);
-        playPlaylist(index);
-      }
-    });
-  }
+  
+  container.addEventListener('click', (e) => {
+    const deleteBtn = e.target.closest('[data-delete]');
+    if (deleteBtn) {
+      e.stopPropagation();
+      deletePlaylist(deleteBtn.dataset.delete);
+      return;
+    }
+    
+    const removeBtn = e.target.closest('[data-remove]');
+    if (removeBtn && selectedPlaylistIndex !== null) {
+      e.stopPropagation();
+      removeSongFromPlaylist(selectedPlaylistIndex, parseInt(removeBtn.dataset.remove));
+      return;
+    }
+    
+    const backBtn = e.target.closest('#backToPlaylists');
+    if (backBtn) {
+      selectedPlaylistIndex = null;
+      renderPlaylists();
+      return;
+    }
+    
+    const playAllBtn = e.target.closest('#playPlaylistSongs');
+    if (playAllBtn && selectedPlaylistIndex !== null) {
+      playPlaylist(selectedPlaylistIndex, 0);
+      return;
+    }
+    
+    const songItem = e.target.closest('.playlist-song-item');
+    if (songItem && selectedPlaylistIndex !== null) {
+      const index = parseInt(songItem.dataset.index);
+      playPlaylist(selectedPlaylistIndex, index);
+      return;
+    }
+    
+    const card = e.target.closest('.playlist-card');
+    if (card) {
+      const index = parseInt(card.dataset.index);
+      renderPlaylistSongs(index);
+    }
+  });
   
   const createBtn = document.getElementById('createPlaylistBtn');
   if (createBtn) {
     createBtn.addEventListener('click', () => {
+      selectedPlaylistIndex = null;
       document.getElementById('newPlaylistSongData').value = '';
       document.getElementById('createPlaylistModal').classList.add('active');
       document.getElementById('playlistNameInput').focus();

@@ -6,8 +6,8 @@ let isMuted = false;
 let previousVolume = 75;
 let shuffle = false;
 let repeat = 'off';
-let playlist = [];
-let currentPlaylistIndex = -1;
+window.playlist = [];
+window.currentPlaylistIndex = -1;
 
 function initPlayer() {
   audioPlayer.volume = volume / 100;
@@ -92,35 +92,35 @@ function previousTrack() {
     return;
   }
 
-  if (playlist.length > 0) {
+  if (window.playlist.length > 0) {
     if (shuffle) {
-      currentPlaylistIndex = Math.floor(Math.random() * playlist.length);
+      window.currentPlaylistIndex = Math.floor(Math.random() * window.playlist.length);
     } else {
-      currentPlaylistIndex = (currentPlaylistIndex - 1 + playlist.length) % playlist.length;
+      window.currentPlaylistIndex = (window.currentPlaylistIndex - 1 + window.playlist.length) % window.playlist.length;
     }
-    playFromPlaylist(currentPlaylistIndex);
+    playFromPlaylist(window.currentPlaylistIndex);
   }
 }
 
 function nextTrack() {
-  if (playlist.length > 0) {
+  if (window.playlist.length > 0) {
     if (shuffle) {
       let nextIndex;
       do {
-        nextIndex = Math.floor(Math.random() * playlist.length);
-      } while (nextIndex === currentPlaylistIndex && playlist.length > 1);
-      currentPlaylistIndex = nextIndex;
+        nextIndex = Math.floor(Math.random() * window.playlist.length);
+      } while (nextIndex === window.currentPlaylistIndex && window.playlist.length > 1);
+      window.currentPlaylistIndex = nextIndex;
     } else {
-      currentPlaylistIndex = (currentPlaylistIndex + 1) % playlist.length;
+      window.currentPlaylistIndex = (window.currentPlaylistIndex + 1) % window.playlist.length;
     }
-    playFromPlaylist(currentPlaylistIndex);
+    playFromPlaylist(window.currentPlaylistIndex);
   }
 }
 
 function playFromPlaylist(index) {
-  if (index < 0 || index >= playlist.length) return;
-  const track = playlist[index];
-  currentPlaylistIndex = index;
+  if (index < 0 || index >= window.playlist.length) return;
+  const track = window.playlist[index];
+  window.currentPlaylistIndex = index;
 
   if (track.filePath) {
     playLocalFile(track.filePath, track);
@@ -162,8 +162,8 @@ function onTrackEnded() {
   if (repeat === 'one') {
     audioPlayer.currentTime = 0;
     audioPlayer.play();
-  } else if (playlist.length > 0) {
-    if (shuffle || repeat === 'all' || currentPlaylistIndex < playlist.length - 1) {
+  } else if (window.playlist.length > 0) {
+    if (shuffle || repeat === 'all' || window.currentPlaylistIndex < window.playlist.length - 1) {
       nextTrack();
     } else {
       isPlaying = false;
