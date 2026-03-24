@@ -1,6 +1,9 @@
 # CODEX
 
-A music player built with Electron.
+A music player and downloader lossless quality built with Electron .
+
+MP3 - 320kbps VBR 256kbps 192kbps 128kbps
+FLAC - Lossless
 
 ## Features
 
