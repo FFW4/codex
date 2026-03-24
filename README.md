@@ -1,14 +1,13 @@
 # CODEX
 
-A cyberpunk-styled SoulSeek music player built with Electron.
+A music player built with Electron.
 
 ## Features
 
 - **SoulSeek Integration** - Search and download music directly from the SoulSeek network
 - **Music Library** - Auto-scans your download folder and builds a local library
-- **Album Artwork** - Extracts and displays album art from audio files
 - **Audio Player** - Play downloaded music with streaming support
-- **Cyberpunk V-Tech Aesthetic** - Dark theme with cyan/magenta accents, angular UI elements, and glowing effects
+- **V-Tech Aesthetic** - Dark theme with cyan/magenta accents, angular UI elements, and glowing effects
 
 ## Tech Stack
 
@@ -30,6 +29,3 @@ On first launch, enter your SoulSeek credentials. They will be securely stored l
 
 By default, music downloads to `C:\Users\<username>\Music\SoulSeek`. You can change this in the app settings.
 
-## License
-
-MIT
