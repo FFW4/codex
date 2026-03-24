@@ -141,8 +141,9 @@ app.whenReady().then(() => {
   });
 
   // Auto-login with stored credentials
-  if (store.get('username') && store.get('password')) {
-    soulseekClient.setCredentials(store.get('username'), store.get('password'));
+  const savedCreds = store.get('credentials');
+  if (savedCreds && savedCreds.username && savedCreds.password) {
+    soulseekClient.setCredentials(savedCreds.username, savedCreds.password);
     soulseekClient.connect().then((result) => {
       log(`Auto-login successful: ${JSON.stringify(result)}`);
     }).catch((err) => {
@@ -475,4 +476,27 @@ ipcMain.handle('get-local-files', async (event, dirPath) => {
   } catch (error) {
     return { success: false, error: error.message };
   }
+});
+
+ipcMain.handle('get-playlists', async () => {
+  return store.get('playlists', []);
+});
+
+ipcMain.handle('save-playlist', async (event, playlist) => {
+  const playlists = store.get('playlists', []);
+  const existing = playlists.findIndex(p => p.id === playlist.id);
+  if (existing >= 0) {
+    playlists[existing] = playlist;
+  } else {
+    playlists.push(playlist);
+  }
+  store.set('playlists', playlists);
+  return { success: true };
+});
+
+ipcMain.handle('delete-playlist', async (event, playlistId) => {
+  const playlists = store.get('playlists', []);
+  const filtered = playlists.filter(p => p.id !== playlistId);
+  store.set('playlists', filtered);
+  return { success: true };
 });

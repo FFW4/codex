@@ -92,8 +92,12 @@ function previousTrack() {
     return;
   }
 
-  if (playlist.length > 0 && currentPlaylistIndex > 0) {
-    currentPlaylistIndex--;
+  if (playlist.length > 0) {
+    if (shuffle) {
+      currentPlaylistIndex = Math.floor(Math.random() * playlist.length);
+    } else {
+      currentPlaylistIndex = (currentPlaylistIndex - 1 + playlist.length) % playlist.length;
+    }
     playFromPlaylist(currentPlaylistIndex);
   }
 }
@@ -101,7 +105,11 @@ function previousTrack() {
 function nextTrack() {
   if (playlist.length > 0) {
     if (shuffle) {
-      currentPlaylistIndex = Math.floor(Math.random() * playlist.length);
+      let nextIndex;
+      do {
+        nextIndex = Math.floor(Math.random() * playlist.length);
+      } while (nextIndex === currentPlaylistIndex && playlist.length > 1);
+      currentPlaylistIndex = nextIndex;
     } else {
       currentPlaylistIndex = (currentPlaylistIndex + 1) % playlist.length;
     }
@@ -154,11 +162,13 @@ function onTrackEnded() {
   if (repeat === 'one') {
     audioPlayer.currentTime = 0;
     audioPlayer.play();
-  } else if (repeat === 'all' || currentPlaylistIndex < playlist.length - 1) {
-    nextTrack();
-  } else {
-    isPlaying = false;
-    updatePlayPauseButton();
+  } else if (playlist.length > 0) {
+    if (shuffle || repeat === 'all' || currentPlaylistIndex < playlist.length - 1) {
+      nextTrack();
+    } else {
+      isPlaying = false;
+      updatePlayPauseButton();
+    }
   }
 }
 
@@ -269,7 +279,10 @@ function updateVolumeUI() {
 
 function toggleShuffle() {
   shuffle = !shuffle;
-  document.querySelector('.shuffle-btn')?.classList.toggle('active', shuffle);
+  const btn = document.getElementById('shuffleBtn');
+  if (btn) {
+    btn.classList.toggle('active', shuffle);
+  }
 }
 
 function toggleRepeat() {
@@ -277,10 +290,14 @@ function toggleRepeat() {
   const currentIndex = modes.indexOf(repeat);
   repeat = modes[(currentIndex + 1) % modes.length];
 
-  const btn = document.querySelector('.repeat-btn');
+  const btn = document.getElementById('repeatBtn');
+  const indicator = document.getElementById('repeatIndicator');
   if (btn) {
     btn.classList.toggle('active', repeat !== 'off');
     btn.title = `Repeat: ${repeat}`;
+  }
+  if (indicator) {
+    indicator.style.display = repeat === 'one' ? 'block' : 'none';
   }
 }
 

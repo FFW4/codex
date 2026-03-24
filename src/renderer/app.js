@@ -2,12 +2,100 @@ let isLoggedIn = false;
 let currentUser = null;
 let loginSuccessReceived = false;
 let listenersSetup = false;
+let loginModal;
+let downloadStates = new Map();
+let activeDownloads = new Map();
 
 document.addEventListener('DOMContentLoaded', () => {
+  loginModal = document.getElementById('loginModal');
   initApp();
   setupNavButtons();
   setupPlayerControls();
+  setupLoginModal();
+  checkLoginStatus();
 });
+
+function setupLoginModal() {
+  const loginForm = document.getElementById('loginForm');
+  const loginBtn = document.getElementById('loginBtn');
+  const loginError = document.getElementById('loginError');
+  const loginStatus = document.getElementById('loginStatus');
+  const usernameInput = document.getElementById('loginUsername');
+  const passwordInput = document.getElementById('loginPassword');
+
+  loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const username = usernameInput.value.trim();
+    const password = passwordInput.value;
+    
+    if (!username || !password) {
+      loginError.textContent = 'Please enter username and password';
+      return;
+    }
+
+    loginBtn.disabled = true;
+    loginBtn.classList.add('loading');
+    loginError.textContent = '';
+    loginStatus.textContent = 'Connecting to SoulSeek...';
+
+    try {
+      const result = await window.api.login({ username, password });
+      if (result.success) {
+        loginStatus.textContent = 'Connected!';
+        loginModal.classList.remove('active');
+        isLoggedIn = true;
+        currentUser = result.username;
+        updateConnectionStatus(true, result.username);
+        updateUserUI(result.username);
+        loadSettings();
+      } else {
+        loginError.textContent = result.error || 'Login failed';
+        loginStatus.textContent = 'Connection failed';
+        loginBtn.disabled = false;
+        loginBtn.classList.remove('loading');
+      }
+    } catch (error) {
+      loginError.textContent = error.message || 'Connection error';
+      loginStatus.textContent = 'Connection error';
+      loginBtn.disabled = false;
+      loginBtn.classList.remove('loading');
+    }
+  });
+}
+
+function checkLoginStatus() {
+  setTimeout(async () => {
+    try {
+      const result = await window.api.getCredentials();
+      if (result.username && result.hasPassword) {
+        loginStatus.textContent = 'Auto-connecting...';
+        const autoLoginResult = await window.api.autoLogin();
+        if (autoLoginResult.success) {
+          loginModal.classList.remove('active');
+          isLoggedIn = true;
+          currentUser = autoLoginResult.username;
+          updateConnectionStatus(true, autoLoginResult.username);
+          updateUserUI(autoLoginResult.username);
+        } else {
+          loginModal.classList.add('active');
+          document.getElementById('loginUsername').value = result.username;
+          document.getElementById('loginStatus').textContent = 'Session expired. Please login again.';
+        }
+      } else {
+        loginModal.classList.add('active');
+      }
+    } catch (error) {
+      loginModal.classList.add('active');
+    }
+  }, 1000);
+}
+
+function showLoginModal() {
+  if (loginModal) {
+    loginModal.classList.add('active');
+  }
+}
 
 function setupNavButtons() {
   document.querySelectorAll('.nav-btn[data-view]').forEach(btn => {
@@ -36,6 +124,8 @@ function setupPlayerControls() {
   document.getElementById('closeDetailBtn')?.addEventListener('click', closeSongDetail);
   document.getElementById('playFromDetailBtn')?.addEventListener('click', playFromDetail);
   document.getElementById('downloadFromDetailBtn')?.addEventListener('click', downloadFromDetail);
+  document.getElementById('shuffleBtn')?.addEventListener('click', toggleShuffle);
+  document.getElementById('repeatBtn')?.addEventListener('click', toggleRepeat);
 }
 
 function initApp() {
@@ -43,18 +133,6 @@ function initApp() {
   setupEventListeners();
   loadSettings();
   showView('search');
-
-  // Auto-connect happens in main process, just wait for status
-  setTimeout(() => {
-    window.api.getLoginStatus().then(status => {
-      if (status.isLoggedIn) {
-        isLoggedIn = true;
-        currentUser = status.username;
-        updateConnectionStatus(true, status.username);
-        updateUserUI(status.username);
-      }
-    });
-  }, 2000);
 }
 
 function onLoginSuccess(data) {
@@ -122,12 +200,29 @@ function setupIPCListeners() {
   });
 
   window.api.onSearchResult((result) => window.onSearchResult(result));
+
+  window.api.onTransferProgress((progress) => {
+    activeDownloads.set(progress.id, {
+      id: progress.id,
+      filename: progress.filename,
+      bytesTransferred: progress.bytesTransferred,
+      fileSize: progress.fileSize,
+      progress: progress.progress || 0
+    });
+    updateDownloadsBar();
+  });
+
   window.api.onTransferComplete((transfer) => {
-    // Show notification when download completes
     if (transfer.status === 'complete') {
+      activeDownloads.delete(transfer.id);
+      updateDownloadsBar();
       showNotification(`Download complete: ${transfer.filename}`, 'success');
       
-      // Add to library
+      if (transfer.remotePath) {
+        downloadStates.set(transfer.remotePath, 'complete');
+        renderSearchResults();
+      }
+      
       if (transfer.localPath) {
         window.api.getFileInfo(transfer.localPath).then(response => {
           if (response.success) {
@@ -156,6 +251,81 @@ function setupIPCListeners() {
   });
 }
 
+function updateDownloadsBar() {
+  const bar = document.getElementById('downloadsBar');
+  if (!bar) return;
+  
+  const downloads = Array.from(activeDownloads.values());
+  
+  if (downloads.length === 0) {
+    bar.classList.remove('active');
+    bar.innerHTML = '';
+    return;
+  }
+  
+  bar.classList.add('active');
+  
+  let html = `
+    <div class="downloads-bar-header">
+      <span class="downloads-bar-title">
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+        </svg>
+        Downloading ${downloads.length} ${downloads.length === 1 ? 'file' : 'files'}
+      </span>
+    </div>
+    <div class="downloads-list">
+  `;
+  
+  downloads.forEach(d => {
+    const percent = Math.round(d.progress || 0);
+    const downloaded = formatFileSize(d.bytesTransferred || 0);
+    const total = formatFileSize(d.fileSize || 0);
+    const shortName = d.filename.length > 40 ? d.filename.substring(0, 40) + '...' : d.filename;
+    
+    html += `
+      <div class="download-item" data-id="${d.id}">
+        <div class="download-item-icon">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="8" stroke-dasharray="50" stroke-dashoffset="10">
+              <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/>
+            </circle>
+          </svg>
+        </div>
+        <div class="download-item-info">
+          <div class="download-item-name">${shortName}</div>
+          <div class="download-item-progress">
+            <div class="download-item-bar">
+              <div class="download-item-fill" style="width: ${percent}%"></div>
+            </div>
+            <span class="download-item-percent">${percent}%</span>
+            <span class="download-item-size">${downloaded} / ${total}</span>
+          </div>
+        </div>
+        <button class="download-item-cancel" onclick="cancelDownload('${d.id}')">
+          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+    `;
+  });
+  
+  html += '</div>';
+  bar.innerHTML = html;
+}
+
+window.cancelDownload = async function(id) {
+  try {
+    await window.api.cancelTransfer(id);
+    activeDownloads.delete(id);
+    updateDownloadsBar();
+  } catch (err) {
+    console.error('Failed to cancel download:', err);
+  }
+};
+
 function showView(viewName) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
@@ -166,6 +336,7 @@ function showView(viewName) {
   }
   if (targetBtn) targetBtn.classList.add('active');
   if (viewName === 'library') loadLibrary();
+  else if (viewName === 'playlists') loadPlaylists();
   else if (viewName === 'settings') {
     loadSettings();
   }

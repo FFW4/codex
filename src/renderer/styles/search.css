@@ -430,3 +430,46 @@
   content: '> ';
   color: var(--cyan);
 }
+
+.download-status {
+  flex-shrink: 0;
+}
+
+.download-status.downloading {
+  animation: pulse 1s ease-in-out infinite;
+}
+
+.download-status.complete {
+  animation: pop 0.3s ease-out;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes pop {
+  0% { transform: scale(0); }
+  70% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+.action-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.action-btn:disabled:hover {
+  border-color: var(--border-glow);
+  color: var(--text-muted);
+  box-shadow: none;
+  background: transparent;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

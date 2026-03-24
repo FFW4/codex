@@ -118,7 +118,39 @@
 .control-buttons {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 12px;
+}
+
+.shuffle-btn,
+.repeat-btn {
+  position: relative;
+  padding: 8px;
+}
+
+.shuffle-btn svg,
+.repeat-btn svg {
+  transition: all 0.2s ease;
+}
+
+.shuffle-btn.active svg,
+.repeat-btn.active svg {
+  color: var(--cyan);
+  filter: drop-shadow(0 0 6px var(--cyan));
+}
+
+.repeat-btn.active svg {
+  color: var(--cyan);
+}
+
+.repeat-indicator {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 700;
+  color: var(--cyan);
+  text-shadow: 0 0 4px var(--cyan);
 }
 
 .control-btn {

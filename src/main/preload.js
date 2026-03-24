@@ -21,6 +21,11 @@ contextBridge.exposeInMainWorld('api', {
   addToLibrary: (song) => ipcRenderer.invoke('add-to-library', song),
   removeFromLibrary: (filePath) => ipcRenderer.invoke('remove-from-library', filePath),
 
+  // Playlists
+  getPlaylists: () => ipcRenderer.invoke('get-playlists'),
+  savePlaylist: (playlist) => ipcRenderer.invoke('save-playlist', playlist),
+  deletePlaylist: (playlistId) => ipcRenderer.invoke('delete-playlist', playlistId),
+
   // Settings
   getSettings: () => ipcRenderer.invoke('get-settings'),
   updateSettings: (settings) => ipcRenderer.invoke('update-settings', settings),
@@ -36,6 +41,9 @@ contextBridge.exposeInMainWorld('api', {
   },
   onTransferComplete: (callback) => {
     ipcRenderer.on('transfer-complete', (event, data) => callback(data));
+  },
+  onTransferProgress: (callback) => {
+    ipcRenderer.on('transfer-progress', (event, data) => callback(data));
   },
   onSoulseekStatus: (callback) => {
     ipcRenderer.on('soulseek-status', (event, data) => callback(data));

@@ -76,6 +76,14 @@ function renderLibraryGridItem(song, index) {
             </svg>
           </button>
         </div>
+        <div class="library-item-actions">
+          <button class="library-action-btn add-to-playlist" data-action="add" title="Add to Playlist">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"/>
+              <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+          </button>
+        </div>
       </div>
       <div class="library-item-info">
         <div class="library-item-title">${song.title || 'Unknown'}</div>
@@ -89,7 +97,7 @@ function renderLibraryGridItem(song, index) {
 function renderLibraryList(container) {
   container.innerHTML = `
     <div class="library-list">
-      <div class="library-list-item" style="background: var(--bg-tertiary); border: none;">
+      <div class="library-list-item library-list-header" style="background: var(--bg-tertiary); border: none;">
         <span class="library-list-number">#</span>
         <span class="library-list-title" style="color: var(--text-muted); font-weight: 500;">Title</span>
         <span class="library-list-artist" style="color: var(--text-muted);">Artist</span>
@@ -116,16 +124,16 @@ function renderLibraryListItem(song, index) {
       <span class="library-list-quality">
         <span class="result-quality ${qualityClass}" style="font-size: 9px; padding: 2px 6px;">${song.quality || 'Unknown'}</span>
       </span>
+      <div class="library-list-actions">
+        <button class="library-list-action-btn add-to-playlist" data-action="add" title="Add to Playlist">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"/>
+            <line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+        </button>
+      </div>
     </div>
   `;
-}
-
-function toggleLibraryView(mode) {
-  libraryViewMode = mode;
-  document.querySelectorAll('.view-toggle-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.mode === mode);
-  });
-  renderLibrary();
 }
 
 function playLibrarySong(index) {
@@ -161,13 +169,108 @@ function removeFromLibrary(filePath) {
   });
 }
 
+function showAddToPlaylistModal(song) {
+  const modal = document.getElementById('addToPlaylistModal');
+  const content = document.getElementById('addToPlaylistContent');
+  
+  window.api.getPlaylists().then(playlists => {
+    let html = `
+      <div class="add-to-playlist-header">
+        <span class="add-to-playlist-song">${song.title || 'Unknown'}</span>
+        <span class="add-to-playlist-artist">${song.artist || 'Unknown Artist'}</span>
+      </div>
+      <div class="add-to-playlist-list">
+        <button class="add-to-playlist-item create-new" id="createPlaylistWithSong">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"/>
+            <line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          <span>Create new playlist</span>
+        </button>
+    `;
+    
+    if (playlists && playlists.length > 0) {
+      playlists.forEach(playlist => {
+        html += `
+          <button class="add-to-playlist-item" data-playlist-id="${playlist.id}">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="8" y1="6" x2="21" y2="6"/>
+              <line x1="8" y1="12" x2="21" y2="12"/>
+              <line x1="8" y1="18" x2="21" y2="18"/>
+            </svg>
+            <span>${playlist.name}</span>
+            <span class="add-to-playlist-count">${playlist.songs ? playlist.songs.length : 0}</span>
+          </button>
+        `;
+      });
+    }
+    
+    html += '</div>';
+    content.innerHTML = html;
+    
+    content.querySelectorAll('.add-to-playlist-item[data-playlist-id]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const playlistId = btn.dataset.playlistId;
+        addSongToPlaylist(playlistId, song);
+        modal.classList.remove('active');
+      });
+    });
+    
+    document.getElementById('createPlaylistWithSong').addEventListener('click', () => {
+      modal.classList.remove('active');
+      document.getElementById('newPlaylistSongData').value = JSON.stringify(song);
+      document.getElementById('createPlaylistModal').classList.add('active');
+      document.getElementById('playlistNameInput').focus();
+    });
+  });
+  
+  modal.classList.add('active');
+}
+
+function addSongToPlaylist(playlistId, song) {
+  window.api.getPlaylists().then(playlists => {
+    const playlist = playlists.find(p => p.id === playlistId);
+    if (playlist) {
+      if (!playlist.songs) playlist.songs = [];
+      const exists = playlist.songs.some(s => s.filePath === song.filePath);
+      if (!exists) {
+        playlist.songs.push(song);
+        window.api.savePlaylist(playlist).then(() => {
+          showNotification(`Added to "${playlist.name}"`, 'success');
+        });
+      } else {
+        showNotification('Song already in playlist', 'info');
+      }
+    }
+  });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-  // Event delegation for library items
   document.getElementById('libraryContent').addEventListener('click', (e) => {
+    const addBtn = e.target.closest('.add-to-playlist');
+    if (addBtn) {
+      e.stopPropagation();
+      const item = addBtn.closest('[data-index]');
+      if (item) {
+        const index = parseInt(item.dataset.index);
+        showAddToPlaylistModal(library[index]);
+      }
+      return;
+    }
+    
     const item = e.target.closest('[data-index]');
     if (item) {
       const index = parseInt(item.dataset.index);
       playLibrarySong(index);
     }
   });
+  
+  const addModal = document.getElementById('addToPlaylistModal');
+  if (addModal) {
+    addModal.addEventListener('click', (e) => {
+      if (e.target.id === 'addToPlaylistModal') {
+        addModal.classList.remove('active');
+      }
+    });
+  }
 });

@@ -103,15 +103,23 @@ function renderSearchResultItem(result, index) {
   const { artist, title } = parseFilename(result.filename);
   const qualityClass = getQualityClass(result.quality);
   const sizeFormatted = formatFileSize(result.filesize);
+  const state = downloadStates.get(result.filePath) || 'idle';
+
+  let statusIcon = '';
+  if (state === 'downloading') {
+    statusIcon = `<svg class="download-status downloading" viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="8" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-dasharray="50" stroke-dashoffset="10"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/></circle></svg>`;
+  } else if (state === 'complete') {
+    statusIcon = `<svg class="download-status complete" viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="none" stroke="var(--green)" stroke-width="2"/><polyline points="8,12 11,15 16,9" fill="none" stroke="var(--green)" stroke-width="2"/></svg>`;
+  }
 
   return `
     <div class="search-result-item" data-index="${index}">
       <div class="result-icon">
-        <svg viewBox="0 0 24 24" width="24" height="24">
+        ${statusIcon || `<svg viewBox="0 0 24 24" width="24" height="24">
           <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.5"/>
           <circle cx="12" cy="12" r="3" fill="currentColor"/>
           <circle cx="12" cy="12" r="1" fill="var(--bg-primary)"/>
-        </svg>
+        </svg>`}
       </div>
       <div class="result-info">
         <div class="result-title" title="${result.filename}">${title}</div>
@@ -131,12 +139,14 @@ function renderSearchResultItem(result, index) {
             <polygon points="5,3 19,12 5,21" fill="currentColor"/>
           </svg>
         </button>
-        <button class="action-btn download" data-action="download" data-index="${index}" title="Download">
-          <svg viewBox="0 0 24 24" width="16" height="16">
+        <button class="action-btn download" data-action="download" data-index="${index}" title="Download" ${state === 'downloading' || state === 'complete' ? 'disabled' : ''}>
+          ${state === 'complete' ? `<svg viewBox="0 0 24 24" width="16" height="16"><polyline points="20,6 9,17 4,12" fill="none" stroke="var(--green)" stroke-width="2"/></svg>` : 
+            state === 'downloading' ? `<svg viewBox="0 0 24 24" width="16" height="16" class="spin"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="50" stroke-dashoffset="10"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/></circle></svg>` :
+            `<svg viewBox="0 0 24 24" width="16" height="16">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" fill="none" stroke="currentColor" stroke-width="2"/>
             <polyline points="7 10 12 15 17 10" fill="none" stroke="currentColor" stroke-width="2"/>
             <line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" stroke-width="2"/>
-          </svg>
+          </svg>`}
         </button>
       </div>
     </div>
@@ -251,17 +261,30 @@ function downloadSong(index) {
   const { artist, title } = parseFilename(result.filename);
   showNotification(`Starting download: ${title}`, 'info');
 
+  downloadStates.set(result.filePath, 'downloading');
+  updateSearchResultItem(index);
+
   window.api.downloadSong({
     filename: result.filename,
     username: result.username,
     path: result.filePath
   }).then(response => {
-    if (response.success) {
-      // Download started, completion will be notified via IPC
-    } else {
+    if (!response.success) {
+      downloadStates.delete(result.filePath);
+      updateSearchResultItem(index);
       showNotification('Download failed: ' + response.error, 'error');
     }
   });
+}
+
+function updateSearchResultItem(index) {
+  const items = document.querySelectorAll('.search-result-item');
+  if (items[index]) {
+    const result = searchResults[index];
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = renderSearchResultItem(result, index);
+    items[index].replaceWith(tempDiv.firstElementChild);
+  }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
