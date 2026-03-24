@@ -1,0 +1,289 @@
+let audioPlayer = document.getElementById('audioPlayer');
+let currentTrack = null;
+let isPlaying = false;
+let volume = 75;
+let isMuted = false;
+let previousVolume = 75;
+let shuffle = false;
+let repeat = 'off';
+let playlist = [];
+let currentPlaylistIndex = -1;
+
+function initPlayer() {
+  audioPlayer.volume = volume / 100;
+  updateVolumeUI();
+
+  audioPlayer.addEventListener('timeupdate', updateProgress);
+  audioPlayer.addEventListener('loadedmetadata', onMetadataLoaded);
+  audioPlayer.addEventListener('ended', onTrackEnded);
+  audioPlayer.addEventListener('error', onPlayerError);
+  audioPlayer.addEventListener('play', () => {
+    isPlaying = true;
+    updatePlayPauseButton();
+  });
+  audioPlayer.addEventListener('pause', () => {
+    isPlaying = false;
+    updatePlayPauseButton();
+  });
+
+  const progressBar = document.getElementById('progressBar');
+  if (progressBar) {
+    progressBar.addEventListener('click', (e) => {
+      const rect = progressBar.getBoundingClientRect();
+      const percent = (e.clientX - rect.left) / rect.width;
+      if (audioPlayer.duration) {
+        audioPlayer.currentTime = percent * audioPlayer.duration;
+      }
+    });
+  }
+}
+
+function playFromUrl(url, trackInfo) {
+  currentTrack = {
+    ...trackInfo,
+    url: url,
+    isStream: true
+  };
+
+  audioPlayer.src = url;
+  audioPlayer.load();
+  audioPlayer.play().catch(err => {
+    console.error('Playback failed:', err);
+    showNotification('Playback failed', 'error');
+  });
+
+  updateNowPlaying(trackInfo);
+  updateQualityBadge(trackInfo.quality);
+}
+
+function playLocalFile(filePath, trackInfo) {
+  currentTrack = {
+    ...trackInfo,
+    filePath: filePath,
+    isStream: false
+  };
+
+  audioPlayer.src = `file://${filePath}`;
+  audioPlayer.load();
+  audioPlayer.play().catch(err => {
+    console.error('Playback failed:', err);
+    showNotification('Playback failed', 'error');
+  });
+
+  updateNowPlaying(trackInfo);
+  updateQualityBadge(trackInfo.quality);
+}
+
+function togglePlayPause() {
+  if (!currentTrack) return;
+
+  if (isPlaying) {
+    audioPlayer.pause();
+  } else {
+    audioPlayer.play().catch(err => {
+      console.error('Playback failed:', err);
+    });
+  }
+}
+
+function previousTrack() {
+  if (audioPlayer.currentTime > 3) {
+    audioPlayer.currentTime = 0;
+    return;
+  }
+
+  if (playlist.length > 0 && currentPlaylistIndex > 0) {
+    currentPlaylistIndex--;
+    playFromPlaylist(currentPlaylistIndex);
+  }
+}
+
+function nextTrack() {
+  if (playlist.length > 0) {
+    if (shuffle) {
+      currentPlaylistIndex = Math.floor(Math.random() * playlist.length);
+    } else {
+      currentPlaylistIndex = (currentPlaylistIndex + 1) % playlist.length;
+    }
+    playFromPlaylist(currentPlaylistIndex);
+  }
+}
+
+function playFromPlaylist(index) {
+  if (index < 0 || index >= playlist.length) return;
+  const track = playlist[index];
+  currentPlaylistIndex = index;
+
+  if (track.filePath) {
+    playLocalFile(track.filePath, track);
+  } else if (track.url) {
+    playFromUrl(track.url, track);
+  }
+}
+
+function updateProgress() {
+  const current = audioPlayer.currentTime;
+  const duration = audioPlayer.duration || 0;
+  const percent = duration > 0 ? (current / duration) * 100 : 0;
+
+  const progressFill = document.getElementById('progressFill');
+  const currentTimeEl = document.getElementById('currentTime');
+
+  if (progressFill) {
+    progressFill.style.width = `${percent}%`;
+  }
+  if (currentTimeEl) {
+    currentTimeEl.textContent = formatDuration(current);
+  }
+}
+
+function onMetadataLoaded() {
+  const duration = audioPlayer.duration;
+  const totalTimeEl = document.getElementById('totalTime');
+  if (totalTimeEl) {
+    totalTimeEl.textContent = formatDuration(duration);
+  }
+
+  if (currentTrack && currentTrack.duration !== duration) {
+    currentTrack.duration = duration;
+    currentTrack.durationFormatted = formatDuration(duration);
+  }
+}
+
+function onTrackEnded() {
+  if (repeat === 'one') {
+    audioPlayer.currentTime = 0;
+    audioPlayer.play();
+  } else if (repeat === 'all' || currentPlaylistIndex < playlist.length - 1) {
+    nextTrack();
+  } else {
+    isPlaying = false;
+    updatePlayPauseButton();
+  }
+}
+
+function onPlayerError(e) {
+  console.error('Player error:', e);
+  showNotification('Error playing track', 'error');
+}
+
+function updateNowPlaying(trackInfo) {
+  const titleEl = document.getElementById('nowPlayingTitle');
+  const artistEl = document.getElementById('nowPlayingArtist');
+  const artEl = document.getElementById('albumArt');
+
+  if (titleEl) {
+    titleEl.textContent = trackInfo.title || 'Unknown';
+  }
+  if (artistEl) {
+    artistEl.textContent = trackInfo.artist || 'Unknown Artist';
+  }
+  if (artEl && trackInfo.artwork && trackInfo.artwork.data) {
+    const base64Data = typeof trackInfo.artwork.data === 'string' 
+      ? trackInfo.artwork.data 
+      : trackInfo.artwork.data.toString('base64');
+    artEl.innerHTML = `<img src="data:${trackInfo.artwork.format};base64,${base64Data}" alt="Album Art">`;
+    artEl.classList.add('has-artwork');
+  } else if (artEl) {
+    artEl.innerHTML = `
+      <svg viewBox="0 0 24 24" width="24" height="24">
+        <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1"/>
+        <circle cx="12" cy="12" r="3" fill="currentColor"/>
+      </svg>
+    `;
+    artEl.classList.remove('has-artwork');
+  }
+
+  document.title = `${trackInfo.title || 'CODEX'} - CODEX`;
+}
+
+function updatePlayPauseButton() {
+  const playIcon = document.getElementById('playIcon');
+  const pauseIcon = document.getElementById('pauseIcon');
+
+  if (isPlaying) {
+    if (playIcon) playIcon.style.display = 'none';
+    if (pauseIcon) pauseIcon.style.display = 'block';
+  } else {
+    if (playIcon) playIcon.style.display = 'block';
+    if (pauseIcon) pauseIcon.style.display = 'none';
+  }
+}
+
+function updateQualityBadge(quality) {
+  const badge = document.getElementById('qualityBadge');
+  if (!badge) return;
+
+  const qualityClass = getQualityClass(quality || 'Unknown');
+  badge.textContent = quality || 'Unknown';
+  badge.className = `quality-badge ${qualityClass}`;
+}
+
+function setVolume(value) {
+  volume = parseInt(value);
+  audioPlayer.volume = volume / 100;
+  isMuted = volume === 0;
+  updateVolumeUI();
+}
+
+function toggleMute() {
+  if (isMuted) {
+    volume = previousVolume;
+    isMuted = false;
+  } else {
+    previousVolume = volume;
+    volume = 0;
+    isMuted = true;
+  }
+  audioPlayer.volume = volume / 100;
+  updateVolumeUI();
+}
+
+function updateVolumeUI() {
+  const volumeFill = document.getElementById('volumeFill');
+  const volumeSlider = document.getElementById('volumeSlider');
+  const volumeIcon = document.getElementById('volumeIcon');
+  const muteIcon = document.getElementById('muteIcon');
+  const volumeValue = document.getElementById('volumeValue');
+
+  if (volumeFill) {
+    volumeFill.style.width = `${volume}%`;
+  }
+  if (volumeSlider) {
+    volumeSlider.value = volume;
+  }
+  if (volumeValue) {
+    volumeValue.textContent = `${volume}%`;
+  }
+
+  if (volumeIcon && muteIcon) {
+    if (isMuted || volume === 0) {
+      volumeIcon.style.display = 'none';
+      muteIcon.style.display = 'block';
+    } else {
+      volumeIcon.style.display = 'block';
+      muteIcon.style.display = 'none';
+    }
+  }
+}
+
+function toggleShuffle() {
+  shuffle = !shuffle;
+  document.querySelector('.shuffle-btn')?.classList.toggle('active', shuffle);
+}
+
+function toggleRepeat() {
+  const modes = ['off', 'all', 'one'];
+  const currentIndex = modes.indexOf(repeat);
+  repeat = modes[(currentIndex + 1) % modes.length];
+
+  const btn = document.querySelector('.repeat-btn');
+  if (btn) {
+    btn.classList.toggle('active', repeat !== 'off');
+    btn.title = `Repeat: ${repeat}`;
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  initPlayer();
+});

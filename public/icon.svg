@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#050508"/>
+      <stop offset="100%" style="stop-color:#0a0a12"/>
+    </linearGradient>
+    <linearGradient id="cyan" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0af"/>
+      <stop offset="100%" style="stop-color:#08a"/>
+    </linearGradient>
+    <linearGradient id="magenta" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ff0066"/>
+      <stop offset="100%" style="stop-color:#cc0052"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="glow-strong">
+      <feGaussianBlur stdDeviation="8" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="512" height="512" fill="url(#bg)"/>
+  
+  <!-- Grid pattern -->
+  <g opacity="0.05" stroke="#0af" stroke-width="0.5">
+    <line x1="0" y1="64" x2="512" y2="64"/>
+    <line x1="0" y1="128" x2="512" y2="128"/>
+    <line x1="0" y1="192" x2="512" y2="192"/>
+    <line x1="0" y1="256" x2="512" y2="256"/>
+    <line x1="0" y1="320" x2="512" y2="320"/>
+    <line x1="0" y1="384" x2="512" y2="384"/>
+    <line x1="0" y1="448" x2="512" y2="448"/>
+    <line x1="64" y1="0" x2="64" y2="512"/>
+    <line x1="128" y1="0" x2="128" y2="512"/>
+    <line x1="192" y1="0" x2="192" y2="512"/>
+    <line x1="256" y1="0" x2="256" y2="512"/>
+    <line x1="320" y1="0" x2="320" y2="512"/>
+    <line x1="384" y1="0" x2="384" y2="512"/>
+    <line x1="448" y1="0" x2="448" y2="512"/>
+  </g>
+  
+  <!-- Outer hexagon -->
+  <polygon points="256,50 432,130 432,382 256,462 80,382 80,130" 
+           fill="none" stroke="url(#cyan)" stroke-width="4" filter="url(#glow)"/>
+  
+  <!-- Middle hexagon -->
+  <polygon points="256,90 395,150 395,362 256,422 115,362 115,150" 
+           fill="none" stroke="url(#cyan)" stroke-width="2" opacity="0.6"/>
+  
+  <!-- Inner hexagon -->
+  <polygon points="256,140 355,185 355,327 256,372 155,327 155,185" 
+           fill="none" stroke="url(#cyan)" stroke-width="1.5" opacity="0.4"/>
+  
+  <!-- Central diamond -->
+  <polygon points="256,180 320,256 256,332 192,256" 
+           fill="none" stroke="url(#magenta)" stroke-width="2" filter="url(#glow)"/>
+  
+  <!-- Core circle -->
+  <circle cx="256" cy="256" r="40" fill="none" stroke="url(#cyan)" stroke-width="2" filter="url(#glow-strong)"/>
+  <circle cx="256" cy="256" r="20" fill="url(#cyan)" filter="url(#glow-strong)"/>
+  
+  <!-- Corner accents -->
+  <g stroke="url(#cyan)" stroke-width="2" filter="url(#glow)">
+    <line x1="256" y1="50" x2="256" y2="90"/>
+    <line x1="256" y1="422" x2="256" y2="462"/>
+    <line x1="80" y1="130" x2="115" y2="150"/>
+    <line x1="115" y1="362" x2="80" y2="382"/>
+    <line x1="432" y1="130" x2="395" y2="150"/>
+    <line x1="395" y1="362" x2="432" y2="382"/>
+  </g>
+  
+  <!-- Data lines -->
+  <g stroke="url(#cyan)" stroke-width="1" opacity="0.5">
+    <line x1="256" y1="180" x2="256" y2="140"/>
+    <line x1="256" y1="332" x2="256" y2="372"/>
+    <line x1="192" y1="256" x2="155" y2="256"/>
+    <line x1="320" y1="256" x2="355" y2="256"/>
+  </g>
+  
+  <!-- Corner brackets -->
+  <g stroke="url(#cyan)" stroke-width="2" opacity="0.3">
+    <path d="M60,60 L60,100 M60,60 L100,60"/>
+    <path d="M452,60 L452,100 M452,60 L412,60"/>
+    <path d="M60,452 L60,412 M60,452 L100,452"/>
+    <path d="M452,452 L452,412 M452,452 L412,452"/>
+  </g>
+</svg>
