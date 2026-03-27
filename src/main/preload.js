@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('api', {
   // Search & Playback
   search: (query) => ipcRenderer.invoke('search', query),
   downloadSong: (data) => ipcRenderer.invoke('download-song', data),
+  downloadMultiple: (files) => ipcRenderer.invoke('download-multiple', files),
   streamSong: (data) => ipcRenderer.invoke('stream-song', data),
   cancelTransfer: (transferId) => ipcRenderer.invoke('cancel-transfer', transferId),
   getFileInfo: (filePath) => ipcRenderer.invoke('get-file-info', filePath),

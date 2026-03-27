@@ -303,7 +303,7 @@ function updateDownloadsBar() {
             <span class="download-item-size">${downloaded} / ${total}</span>
           </div>
         </div>
-        <button class="download-item-cancel" onclick="cancelDownload('${d.id}')">
+        <button class="download-item-cancel" data-cancel-id="${d.id}">
           <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="18" y1="6" x2="6" y2="18"/>
             <line x1="6" y1="6" x2="18" y2="18"/>
@@ -319,13 +319,27 @@ function updateDownloadsBar() {
 
 window.cancelDownload = async function(id) {
   try {
-    await window.api.cancelTransfer(id);
-    activeDownloads.delete(id);
-    updateDownloadsBar();
+    const result = await window.api.cancelTransfer(id);
+    if (result.success) {
+      activeDownloads.delete(id);
+      updateDownloadsBar();
+    } else {
+      showNotification('Failed to cancel download: ' + (result.error || 'Unknown error'), 'error');
+    }
   } catch (err) {
     console.error('Failed to cancel download:', err);
+    showNotification('Failed to cancel download', 'error');
   }
 };
+
+// Download bar click handler
+document.addEventListener('click', (e) => {
+  const cancelBtn = e.target.closest('[data-cancel-id]');
+  if (cancelBtn) {
+    const id = cancelBtn.dataset.cancelId;
+    window.cancelDownload(id);
+  }
+});
 
 function showView(viewName) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));

@@ -369,6 +369,12 @@ body {
   color: var(--cyan);
   flex-shrink: 0;
   animation: spin 1s linear infinite;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
 }
 
 .download-item-info {

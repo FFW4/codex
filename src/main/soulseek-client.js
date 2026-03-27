@@ -389,29 +389,137 @@ class SoulSeekClient extends EventEmitter {
 
   cancelTransfer(transferId) {
     const transfer = this.activeTransfers.get(transferId);
-    if (transfer) {
-      log(`Cancelling transfer: ${transferId} - ${transfer.filename}`);
-      
-      // Use slsk-client's cancelDownload to properly clean up
-      if (this.client && typeof this.client.cancelDownload === 'function') {
-        this.client.cancelDownload(transfer.username, transfer.remotePath);
-      }
-      
-      // Delete the partial file
-      if (transfer.localPath && fs.existsSync(transfer.localPath)) {
-        try {
-          fs.unlinkSync(transfer.localPath);
-          log(`Deleted partial file: ${transfer.localPath}`);
-        } catch (e) {
-          log(`Error deleting partial file: ${e.message}`);
-        }
-      }
-      
-      transfer.status = 'cancelled';
-      this.activeTransfers.delete(transferId);
-      this.emit('transfer-cancelled', transfer);
-      log(`Transfer cancelled: ${transferId}`);
+    if (!transfer) {
+      log(`Transfer not found: ${transferId}`);
+      return Promise.resolve({ success: false, error: 'Transfer not found' });
     }
+    
+    log(`Cancelling transfer: ${transferId} - ${transfer.filename}`);
+    
+    // Use slsk-client's cancelDownload to properly clean up
+    if (this.client && typeof this.client.cancelDownload === 'function') {
+      try {
+        this.client.cancelDownload(transfer.username, transfer.remotePath);
+      } catch (e) {
+        log(`Error calling client.cancelDownload: ${e.message}`);
+      }
+    }
+    
+    // Delete the partial file
+    if (transfer.localPath && fs.existsSync(transfer.localPath)) {
+      try {
+        fs.unlinkSync(transfer.localPath);
+        log(`Deleted partial file: ${transfer.localPath}`);
+      } catch (e) {
+        log(`Error deleting partial file: ${e.message}`);
+      }
+    }
+    
+    transfer.status = 'cancelled';
+    this.activeTransfers.delete(transferId);
+    this.emit('transfer-cancelled', transfer);
+    log(`Transfer cancelled: ${transferId}`);
+    
+    return Promise.resolve({ success: true });
+  }
+
+  downloadMultiple(files, localDir) {
+    return new Promise((resolve, reject) => {
+      if (!this.loggedIn || !this.client) {
+        reject(new Error('Not logged in'));
+        return;
+      }
+
+      const results = [];
+      const errors = [];
+      const destDir = localDir || this.downloadsDir;
+      let completed = 0;
+
+      if (files.length === 0) {
+        resolve({ results: [], errors: [] });
+        return;
+      }
+
+      log(`Queuing ${files.length} files for download`);
+
+      for (const file of files) {
+        const transferId = require('crypto').randomBytes(8).toString('hex');
+        const localPath = path.join(destDir, file.filename);
+
+        const transfer = {
+          id: transferId,
+          filename: file.filename,
+          remotePath: file.remotePath,
+          username: file.username,
+          fileSize: 0,
+          bytesTransferred: 0,
+          status: 'downloading',
+          localPath
+        };
+
+        this.activeTransfers.set(transferId, transfer);
+        log(`Queued: ${file.filename} (${transferId})`);
+
+        const fileInfo = {
+          user: file.username,
+          file: file.remotePath
+        };
+
+        const onProgress = (bytesReceived, totalSize) => {
+          transfer.fileSize = totalSize;
+          transfer.bytesTransferred = bytesReceived;
+          const progressPercent = totalSize > 0
+            ? Math.min(100, Math.round((bytesReceived / totalSize) * 100))
+            : 0;
+          transfer.progress = progressPercent;
+
+          this.emit('transfer-progress', {
+            id: transferId,
+            filename: file.filename,
+            bytesTransferred: bytesReceived,
+            fileSize: totalSize,
+            progress: progressPercent
+          });
+        };
+
+        this.client.download({ file: fileInfo, path: localPath, onProgress }, (err, data) => {
+          completed++;
+
+          if (err) {
+            log(`Download error for ${file.filename}: ${err.message}`);
+            transfer.status = 'error';
+            this.emit('transfer-error', { ...transfer, error: err.message });
+            this.activeTransfers.delete(transferId);
+            errors.push({ filename: file.filename, error: err.message });
+            results.push({ success: false, filename: file.filename, error: err.message });
+          } else {
+            log(`Download complete: ${file.filename}`);
+
+            let finalSize = 0;
+            if (fs.existsSync(localPath)) {
+              try {
+                const stats = fs.statSync(localPath);
+                finalSize = stats.size;
+              } catch (e) {}
+            }
+
+            transfer.status = 'complete';
+            transfer.progress = 100;
+            transfer.fileSize = finalSize > 0 ? finalSize : transfer.fileSize;
+            transfer.bytesTransferred = finalSize > 0 ? finalSize : transfer.bytesTransferred;
+
+            this.emit('transfer-complete', transfer);
+            this.activeTransfers.delete(transferId);
+            results.push({ success: true, filename: file.filename, transferId });
+          }
+
+          if (completed === files.length) {
+            log(`Batch download complete: ${results.filter(r => r.success).length} succeeded, ${errors.length} failed`);
+            resolve({ results, errors });
+          }
+        });
+      }
+    });
   }
 
   getActiveTransfers() {

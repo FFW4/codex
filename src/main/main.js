@@ -200,6 +200,19 @@ ipcMain.handle('download-song', async (event, { filename, username, path: remote
   }
 });
 
+ipcMain.handle('download-multiple', async (event, files) => {
+  try {
+    const downloadPath = store.get('settings.downloadPath');
+    log('[MAIN] Starting batch download for ' + files.length + ' files');
+    const result = await soulseekClient.downloadMultiple(files, downloadPath);
+    log('[MAIN] Batch download: ' + result.results.filter(r => r.success).length + ' queued, ' + result.errors.length + ' failed');
+    return { success: true, ...result };
+  } catch (error) {
+    log('[MAIN] Batch download failed: ' + error.message);
+    return { success: false, error: error.message };
+  }
+});
+
 // Periodic progress sender - polls active transfers and sends updates
 setInterval(() => {
   if (!mainWindow || !mainWindow.webContents) {
@@ -237,8 +250,11 @@ ipcMain.handle('stream-song', async (event, { filename, username, path: remotePa
 
 ipcMain.handle('cancel-transfer', async (event, transferId) => {
   try {
-    await soulseekClient.cancelTransfer(transferId);
-    return { success: true };
+    const result = await soulseekClient.cancelTransfer(transferId);
+    if (result && result.success) {
+      return { success: true };
+    }
+    return { success: false, error: result?.error || 'Failed to cancel transfer' };
   } catch (error) {
     return { success: false, error: error.message };
   }

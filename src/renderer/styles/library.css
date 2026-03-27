@@ -2,6 +2,45 @@
   flex: 1;
   overflow-y: auto;
   padding: 0 32px 32px;
+  display: flex;
+  flex-direction: column;
+}
+
+.library-header-controls {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.library-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  padding: 6px 12px;
+  color: var(--text-muted);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.library-search:focus-within {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 1px var(--accent-primary);
+}
+
+.library-search input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  width: 180px;
+}
+
+.library-search input::placeholder {
+  color: var(--text-muted);
 }
 
 .library-stats {
@@ -396,6 +435,7 @@
   justify-content: center;
   opacity: 0;
   transition: opacity var(--transition-fast);
+  pointer-events: none;
 }
 
 .library-item:hover .library-item-overlay {
@@ -468,6 +508,8 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-height: 0;
+  flex: 1;
 }
 
 .library-list-header {
@@ -481,6 +523,7 @@
   letter-spacing: 2px;
   text-transform: uppercase;
   border-bottom: 1px solid var(--border-glow);
+  flex-shrink: 0;
 }
 
 .library-list-item {
@@ -715,6 +758,7 @@
   justify-content: center;
   opacity: 0;
   transition: opacity var(--transition-fast);
+  pointer-events: none;
 }
 
 .playlist-card:hover .playlist-card-overlay {

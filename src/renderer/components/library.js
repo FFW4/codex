@@ -1,6 +1,7 @@
 let library = [];
-let libraryViewMode = 'grid';
+let libraryViewMode = 'list';
 let libraryVirtualList = null;
+let librarySearchQuery = '';
 const VIRTUAL_THRESHOLD = 50;
 
 async function loadLibrary() {
@@ -16,29 +17,51 @@ function renderLibrary() {
   const container = document.getElementById('libraryContent');
   const countEl = document.getElementById('libraryCount');
 
-  countEl.textContent = `${library.length} song${library.length !== 1 ? 's' : ''}`;
+  let filteredLibrary = library;
+  if (librarySearchQuery) {
+    const query = librarySearchQuery.toLowerCase();
+    filteredLibrary = library.filter(song => {
+      return (song.title && song.title.toLowerCase().includes(query)) ||
+             (song.artist && song.artist.toLowerCase().includes(query)) ||
+             (song.album && song.album.toLowerCase().includes(query));
+    });
+  }
 
-  if (library.length === 0) {
-    container.innerHTML = `
-      <div class="empty-state">
-        <svg viewBox="0 0 24 24" width="80" height="80">
-          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" stroke="currentColor" stroke-width="1" fill="none" opacity="0.3"/>
-          <path d="M6.5 2H20L20 22H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" stroke="currentColor" stroke-width="1" fill="none" opacity="0.3"/>
-        </svg>
-        <p class="empty-text">Your library is empty. Download songs to add them here.</p>
-      </div>
-    `;
+  countEl.textContent = `${filteredLibrary.length} song${filteredLibrary.length !== 1 ? 's' : ''}`;
+
+  if (filteredLibrary.length === 0) {
+    if (librarySearchQuery) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <svg viewBox="0 0 24 24" width="80" height="80">
+            <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="1" fill="none" opacity="0.3"/>
+            <line x1="21" y1="21" x2="16.65" y2="16.65" stroke="currentColor" stroke-width="1" opacity="0.3"/>
+          </svg>
+          <p class="empty-text">No songs match your search.</p>
+        </div>
+      `;
+    } else {
+      container.innerHTML = `
+        <div class="empty-state">
+          <svg viewBox="0 0 24 24" width="80" height="80">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" stroke="currentColor" stroke-width="1" fill="none" opacity="0.3"/>
+            <path d="M6.5 2H20L20 22H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" stroke="currentColor" stroke-width="1" fill="none" opacity="0.3"/>
+          </svg>
+          <p class="empty-text">Your library is empty. Download songs to add them here.</p>
+        </div>
+      `;
+    }
     return;
   }
 
   if (libraryViewMode === 'grid') {
-    renderLibraryGrid(container);
+    renderLibraryGrid(container, filteredLibrary);
   } else {
-    renderLibraryList(container);
+    renderLibraryList(container, filteredLibrary);
   }
 }
 
-function renderLibraryGrid(container) {
+function renderLibraryGrid(container, filteredLibrary) {
   if (libraryVirtualList) {
     libraryVirtualList.destroy();
     libraryVirtualList = null;
@@ -48,7 +71,7 @@ function renderLibraryGrid(container) {
   const gridContainer = document.getElementById('libraryGridContainer');
   
   let html = '';
-  library.forEach((song, index) => {
+  filteredLibrary.forEach((song, index) => {
     html += renderLibraryGridItem(song, index);
   });
   gridContainer.innerHTML = html;
@@ -100,7 +123,7 @@ function renderLibraryGridItem(song, index) {
   `;
 }
 
-function renderLibraryList(container) {
+function renderLibraryList(container, filteredLibrary) {
   if (libraryVirtualList) {
     libraryVirtualList.destroy();
     libraryVirtualList = null;
@@ -122,21 +145,31 @@ function renderLibraryList(container) {
   
   const listContainer = document.getElementById('libraryListItems');
   
-  if (library.length > VIRTUAL_THRESHOLD) {
+  // Force container to have proper height for virtualization to work
+  requestAnimationFrame(() => {
+    if (listContainer && listContainer.parentElement) {
+      const listRect = listContainer.parentElement.getBoundingClientRect();
+      if (listRect.height > 0) {
+        listContainer.style.height = `${listRect.height}px`;
+      }
+    }
+  });
+  
+  if (filteredLibrary.length > VIRTUAL_THRESHOLD) {
     libraryVirtualList = new VirtualList(listContainer, {
       itemHeight: 50,
       bufferSize: 5,
       useVirtual: true
     });
     
-    libraryVirtualList.renderItem = (song, index) => {
-      return renderLibraryListItem(song, index);
+    libraryVirtualList.renderItem = (item, index) => {
+      return renderLibraryListItem(item.song, item.originalIndex);
     };
     
-    libraryVirtualList.setItems(library.map((song, index) => ({ song, index })));
+    libraryVirtualList.setItems(filteredLibrary.map((song, index) => ({ song, originalIndex: index })));
   } else {
     let html = '';
-    library.forEach((song, index) => {
+    filteredLibrary.forEach((song, index) => {
       html += renderLibraryListItem(song, index);
     });
     listContainer.innerHTML = html;
@@ -172,8 +205,23 @@ function renderLibraryListItem(item, index) {
 }
 
 function playLibrarySong(index) {
-  const song = library[index];
+  let filteredLibrary = library;
+  if (librarySearchQuery) {
+    const query = librarySearchQuery.toLowerCase();
+    filteredLibrary = library.filter(song => {
+      return (song.title && song.title.toLowerCase().includes(query)) ||
+             (song.artist && song.artist.toLowerCase().includes(query)) ||
+             (song.album && song.album.toLowerCase().includes(query));
+    });
+  }
+  
+  const song = filteredLibrary[index];
   if (!song) return;
+
+  const playlistContext = {
+    playlist: [...filteredLibrary],
+    currentIndex: index
+  };
 
   if (song.filePath) {
     window.api.getFileInfo(song.filePath).then(response => {
@@ -184,8 +232,9 @@ function playLibrarySong(index) {
           album: song.album || response.info.album,
           quality: song.quality || response.info.quality,
           duration: response.info.duration,
-          artwork: response.info.artwork
-        });
+          hasArtwork: song.hasArtwork || response.info.hasArtwork,
+          artwork: song.artwork || response.info.artwork
+        }, playlistContext);
       }
     });
   }
@@ -281,6 +330,14 @@ function addSongToPlaylist(playlistId, song) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  const searchInput = document.getElementById('librarySearchInput');
+  if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+      librarySearchQuery = e.target.value;
+      renderLibrary();
+    });
+  }
+  
   document.getElementById('libraryContent').addEventListener('click', (e) => {
     const addBtn = e.target.closest('.add-to-playlist');
     if (addBtn) {

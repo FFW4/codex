@@ -38,7 +38,7 @@ function initPlayer() {
   }
 }
 
-function playFromUrl(url, trackInfo) {
+function playFromUrl(url, trackInfo, playlistContext = null) {
   currentTrack = {
     ...trackInfo,
     url: url,
@@ -52,11 +52,16 @@ function playFromUrl(url, trackInfo) {
     showNotification('Playback failed', 'error');
   });
 
+  if (playlistContext) {
+    window.playlist = playlistContext.playlist;
+    window.currentPlaylistIndex = playlistContext.currentIndex;
+  }
+
   updateNowPlaying(trackInfo);
   updateQualityBadge(trackInfo.quality);
 }
 
-function playLocalFile(filePath, trackInfo) {
+function playLocalFile(filePath, trackInfo, playlistContext = null) {
   currentTrack = {
     ...trackInfo,
     filePath: filePath,
@@ -69,6 +74,11 @@ function playLocalFile(filePath, trackInfo) {
     console.error('Playback failed:', err);
     showNotification('Playback failed', 'error');
   });
+
+  if (playlistContext) {
+    window.playlist = playlistContext.playlist;
+    window.currentPlaylistIndex = playlistContext.currentIndex;
+  }
 
   updateNowPlaying(trackInfo);
   updateQualityBadge(trackInfo.quality);
@@ -122,10 +132,15 @@ function playFromPlaylist(index) {
   const track = window.playlist[index];
   window.currentPlaylistIndex = index;
 
+  const playlistContext = {
+    playlist: window.playlist,
+    currentIndex: index
+  };
+
   if (track.filePath) {
-    playLocalFile(track.filePath, track);
+    playLocalFile(track.filePath, track, playlistContext);
   } else if (track.url) {
-    playFromUrl(track.url, track);
+    playFromUrl(track.url, track, playlistContext);
   }
 }
 

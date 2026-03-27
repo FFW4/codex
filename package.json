@@ -1,19 +1,24 @@
 {
   "name": "codex",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "CODEX - Cyberpunk Music Discovery",
+  "author": "FRAGUAR",
+  "companyName": "FRAGUAR",
   "main": "src/main/main.js",
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
     "build": "electron-builder",
     "build:win": "electron-builder --win",
+    "build:win:nsis": "electron-builder --win nsis",
+    "build:win:portable": "electron-builder --win portable",
     "build:mac": "electron-builder --mac",
     "build:linux": "electron-builder --linux"
   },
   "build": {
     "appId": "com.codex.music",
     "productName": "CODEX",
+    "copyright": "Copyright © 2024 FRAGUAR",
     "directories": {
       "output": "dist"
     },
@@ -22,17 +27,38 @@
       "public/**/*",
       "node_modules/**/*"
     ],
+    "asar": true,
     "win": {
-      "target": "nsis",
-      "icon": "public/icon.png"
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "public/icon.ico",
+      "artifactName": "${productName}-${version}-Setup.${ext}",
+      "signAndEditExecutable": false
     },
-    "mac": {
-      "target": "dmg",
-      "icon": "public/icon.png"
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "CODEX",
+      "uninstallDisplayName": "CODEX",
+      "deleteAppDataOnUninstall": true,
+      "installerIcon": "public/icon.ico",
+      "uninstallerIcon": "public/icon.ico",
+      "installerHeaderIcon": "public/icon.ico",
+      "installerHeader": "public/installer-header.png",
+      "installerSidebar": "public/installer-sidebar.bmp",
+      "runAfterFinish": true
     },
-    "linux": {
-      "target": "AppImage",
-      "icon": "public/icon.png"
+    "portable": {
+      "artifactName": "${productName}-${version}-Portable.${ext}"
     }
   },
   "dependencies": {
@@ -44,7 +70,9 @@
   },
   "devDependencies": {
     "electron": "^28.0.0",
-    "electron-builder": "^24.9.1",
+    "electron-builder": "^26.8.1",
+    "electron-installer-windows": "^3.0.0",
+    "electron-packager": "^17.1.2",
     "sharp": "^0.34.5"
   }
 }
