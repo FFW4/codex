@@ -49,3 +49,17 @@ nul
 
 # Electron Store (contains credentials)
 config/
+
+# Test files
+*.mp3
+*.wav
+*.flac
+
+# Build scripts (not needed in repo)
+create-ico.js
+create-installer-assets.js
+create-installer.js
+*.mp3
+create-ico.js
+create-installer-assets.js
+create-installer.js
