@@ -230,5 +230,6 @@ window.artworkUtils = {
   getFullArtworkUrl,
   cleanupStaleArtwork,
   clearArtworkCache,
-  getCacheStats
+  getCacheStats,
+  stopCleanupInterval
 };

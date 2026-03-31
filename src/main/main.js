@@ -214,14 +214,20 @@ ipcMain.handle('download-multiple', async (event, files) => {
 });
 
 // Periodic progress sender - polls active transfers and sends updates
+// Reduced frequency to every 2 seconds to reduce CPU/logging overhead
+let lastTransferCount = 0;
 setInterval(() => {
-  if (!mainWindow || !mainWindow.webContents) {
-    log('[PERIODIC] mainWindow not ready');
+  if (!mainWindow || !mainWindow.webContents || mainWindow.webContents.isDestroyed()) {
     return;
   }
   
   const transfers = soulseekClient.getActiveTransfers();
-  log('[PERIODIC] Active transfers: ' + transfers.size);
+  
+  // Only log if transfer count changes
+  if (transfers.size !== lastTransferCount) {
+    log('[PERIODIC] Active transfers: ' + transfers.size);
+    lastTransferCount = transfers.size;
+  }
   
   if (transfers.size === 0) return;
   
@@ -233,10 +239,9 @@ setInterval(() => {
       fileSize: transfer.fileSize,
       progress: transfer.progress || 0
     };
-    log('[PERIODIC] Sending progress: ' + id + ' - ' + transfer.filename + ' - ' + (transfer.progress || 0) + '%');
     mainWindow.webContents.send('transfer-progress', progress);
   });
-}, 500);
+}, 2000);
 
 ipcMain.handle('stream-song', async (event, { filename, username, path: remotePath }) => {
   try {

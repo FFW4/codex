@@ -417,6 +417,7 @@ window.addEventListener('beforeunload', () => {
   
   if (window.artworkUtils) {
     window.artworkUtils.clearArtworkCache();
+    window.artworkUtils.stopCleanupInterval();
   }
   downloadStates.clear();
   activeDownloads.clear();

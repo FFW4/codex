@@ -9,6 +9,7 @@ class VirtualList {
     this.scrollTop = 0;
     this.containerHeight = 0;
     this.useVirtual = options.useVirtual !== false;
+    this.scrollHandler = null;
     
     this.init();
   }
@@ -28,7 +29,9 @@ class VirtualList {
     this.content.style.position = 'relative';
     this.container.appendChild(this.content);
     
-    this.container.addEventListener('scroll', this.onScroll.bind(this));
+    // Store bound function reference for proper cleanup
+    this.scrollHandler = this.onScroll.bind(this);
+    this.container.addEventListener('scroll', this.scrollHandler);
     
     this.updateDimensions();
   }
@@ -149,7 +152,10 @@ class VirtualList {
   }
 
   destroy() {
-    this.container.removeEventListener('scroll', this.onScroll);
+    if (this.scrollHandler) {
+      this.container.removeEventListener('scroll', this.scrollHandler);
+      this.scrollHandler = null;
+    }
     this.content.innerHTML = '';
     this.renderedItems.clear();
     this.items = [];
