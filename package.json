@@ -48,6 +48,7 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "CODEX",
+      "shortcutIcon": "public/icon.ico",
       "uninstallDisplayName": "CODEX",
       "deleteAppDataOnUninstall": true,
       "installerIcon": "public/icon.ico",
