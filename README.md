@@ -78,4 +78,4 @@ npm run build:win:portable
 
 ## License
 
-Copyright © 2024 FRAGUAR
+Copyright © 2026 FRAGUAR
