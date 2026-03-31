@@ -136,6 +136,12 @@ app.whenReady().then(() => {
     }
   });
 
+  soulseekClient.on('transfer-progress', (progress) => {
+    if (mainWindow && !mainWindow.webContents.isDestroyed()) {
+      mainWindow.webContents.send('transfer-progress', progress);
+    }
+  });
+
   soulseekClient.on('error', (err) => {
     console.error('SoulSeek error:', err.message);
   });
@@ -212,36 +218,6 @@ ipcMain.handle('download-multiple', async (event, files) => {
     return { success: false, error: error.message };
   }
 });
-
-// Periodic progress sender - polls active transfers and sends updates
-// Reduced frequency to every 2 seconds to reduce CPU/logging overhead
-let lastTransferCount = 0;
-setInterval(() => {
-  if (!mainWindow || !mainWindow.webContents || mainWindow.webContents.isDestroyed()) {
-    return;
-  }
-  
-  const transfers = soulseekClient.getActiveTransfers();
-  
-  // Only log if transfer count changes
-  if (transfers.size !== lastTransferCount) {
-    log('[PERIODIC] Active transfers: ' + transfers.size);
-    lastTransferCount = transfers.size;
-  }
-  
-  if (transfers.size === 0) return;
-  
-  transfers.forEach((transfer, id) => {
-    const progress = {
-      id: id,
-      filename: transfer.filename,
-      bytesTransferred: transfer.bytesTransferred,
-      fileSize: transfer.fileSize,
-      progress: transfer.progress || 0
-    };
-    mainWindow.webContents.send('transfer-progress', progress);
-  });
-}, 2000);
 
 ipcMain.handle('stream-song', async (event, { filename, username, path: remotePath }) => {
   try {
